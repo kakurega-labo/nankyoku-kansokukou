@@ -2,7 +2,7 @@
 <html lang="ja"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>南極 観測行</title>
+<title>南極観測行</title>
 <meta name="description" content="観測点でデータを取って、吹雪の中を基地へ帰る。データは持ち帰って、はじめて記録になる。5分後には大ブリザード。旗のロープが帰り道になる。">
 <meta name="theme-color" content="#1f3349">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -11,12 +11,12 @@
 <link rel="canonical" href="https://nankyoku-kansokukou.pages.dev/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://nankyoku-kansokukou.pages.dev/">
-<meta property="og:title" content="南極 観測行">
+<meta property="og:title" content="南極観測行">
 <meta property="og:description" content="観測点でデータを取って、吹雪の中を基地へ帰る。データは持ち帰って、はじめて記録になる。5分後には大ブリザード。旗のロープが帰り道になる。">
 <meta property="og:image" content="https://nankyoku-kansokukou.pages.dev/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="南極 観測行。観測点でデータを取って、吹雪の中を基地へ帰る雪上車のゲーム">
+<meta property="og:image:alt" content="南極観測行。観測点でデータを取って、吹雪の中を基地へ帰る雪上車のゲーム">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
 <style>body{margin:0;padding:0}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -415,7 +415,7 @@ function serviceBase(){G.leftBase=false;G.served=true;
 const SHARE_URL='https://nankyoku-kansokukou.pages.dev/';
 const TAG='#南極観測行';
 let LAST=null;
-function shareText(){const L=LAST;return L.home?`南極 観測行｜${L.title}\n☆${L.got}を基地に持ち帰った（燃料のこり${L.fuel}・走行距離${L.odo}m・旗${L.flags}本）`:`南極 観測行｜救助を待つ\n燃料が切れた。記録できたのは ☆${L.got}${L.lostC?`（運んでいた ☆${L.lostC} は持ち帰れず）`:''}（走行距離${L.odo}m）`}
+function shareText(){const L=LAST;return L.home?`南極観測行｜${L.title}\n☆${L.got}を基地に持ち帰った（燃料のこり${L.fuel}・走行距離${L.odo}m・旗${L.flags}本）`:`南極観測行｜救助を待つ\n燃料が切れた。記録できたのは ☆${L.got}${L.lostC?`（運んでいた ☆${L.lostC} は持ち帰れず）`:''}（走行距離${L.odo}m）`}
 function shareX(){const t=shareText()+'\n'+(SHARE_URL?SHARE_URL+'\n':'')+TAG;window.open('https://x.com/intent/post?text='+encodeURIComponent(t),'_blank','noopener')}
 function makeCard(){const c=document.createElement('canvas');c.width=1200;c.height=630;const m=c.getContext('2d');const L=LAST;
   m.fillStyle='#eef3f7';m.fillRect(0,0,1200,630);
