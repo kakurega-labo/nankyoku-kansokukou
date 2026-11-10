@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="ja"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>南極 観測行</title>
+<meta name="description" content="観測点でデータを取って、吹雪の中を基地へ帰る。データは持ち帰って、はじめて記録になる。5分後には大ブリザード。旗のロープが帰り道になる。">
+<meta name="theme-color" content="#1f3349">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="canonical" href="https://nankyoku-kansokukou.pages.dev/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://nankyoku-kansokukou.pages.dev/">
+<meta property="og:title" content="南極 観測行">
+<meta property="og:description" content="観測点でデータを取って、吹雪の中を基地へ帰る。データは持ち帰って、はじめて記録になる。5分後には大ブリザード。旗のロープが帰り道になる。">
+<meta property="og:image" content="https://nankyoku-kansokukou.pages.dev/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="南極 観測行。観測点でデータを取って、吹雪の中を基地へ帰る雪上車のゲーム">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<style>body{margin:0;padding:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@500;700&family=Kaisei+Tokumin:wght@800&display=swap">
+<style>
+/* layout: 雪原を真上から見る一画面。上に計器の帯、下に操作ボタン */
+:root{
+  --snow:#eef3f7; --ice:#b9cad9; --deep:#1f3349; --ink:#14212f; --dim:#5f7286;
+  --signal:#ff6a2b; --fuel:#e6a100; --bad:#d63b2f; --good:#2c9a5b;
+  --txt:'BIZ UDPGothic',system-ui,sans-serif; --num:'IBM Plex Mono',ui-monospace,monospace;
+  color-scheme:light;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--snow);color:var(--ink);font-family:var(--txt);overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none}
+#app{position:relative;height:100%;max-width:900px;margin:0 auto;display:flex;flex-direction:column}
+#view{position:relative;flex:1 1 auto;min-height:200px}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* 計器：1本の帯を4つに仕切る。幅は中身で変わらない */
+#hud{position:absolute;left:0;right:0;top:0;padding:calc(8px + env(safe-area-inset-top,0px)) max(10px,env(safe-area-inset-right,0px)) 0 max(10px,env(safe-area-inset-left,0px));pointer-events:none;z-index:2}
+#hud .bar{max-width:560px;display:grid;grid-template-columns:auto auto auto auto auto;background:rgba(31,51,73,.88);border-radius:10px;overflow:hidden}
+.g{color:#eaf1f6;padding:6px 8px 7px 9px;font-size:10.5px;letter-spacing:.02em;min-width:0;white-space:nowrap}
+.g+.g{box-shadow:inset 1px 0 0 rgba(234,241,246,.18)}
+.g b{display:block;font-family:var(--num);font-size:16px;letter-spacing:0;font-variant-numeric:tabular-nums;font-weight:700;overflow:hidden;text-overflow:clip}
+#hWind{font-family:var(--txt);font-size:15px;min-width:4em}
+#hFuel{min-width:3ch}#hData{min-width:3.4ch}#hOdo{min-width:5ch}#hClk{min-width:4ch}#fuelBar{min-width:58px}
+@media (max-width:350px){.g{padding:5px 5px 6px 6px;font-size:9.5px}#fuelBar{min-width:44px}.g b{font-size:14px}#hWind{font-size:13px}}
+#fuelBar{height:5px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:3px;width:100%;overflow:hidden}
+#fuelBar i{display:block;height:100%;background:var(--fuel)}
+#fuelG.low b,#clkG.low b{color:#ffb0a8} #fuelG.low #fuelBar i{background:#ff6a5a}
+#fuelG{transition:background-color .2s}#fuelG.up{background:rgba(230,161,0,.35)}#fuelG.up b{color:#ffd77a}
+#memo{position:absolute;left:max(10px,env(safe-area-inset-left,0px));bottom:10px;z-index:2;background:rgba(255,255,255,.88);border:1px solid var(--ice);border-radius:8px;padding:6px 9px;font-size:12px;line-height:1.55;font-family:var(--num);pointer-events:none;display:grid;grid-template-columns:auto auto auto auto auto;column-gap:10px;align-items:baseline}
+#memo .head{grid-column:1/-1}
+#memo .row{display:contents}
+#memo .st{color:var(--fuel);letter-spacing:-.05em}
+#memo .r{text-align:right}
+#memo .ab{font-family:var(--txt);font-size:10px;color:var(--dim);margin-right:2px}#memo .done .ab{text-decoration:none}
+#memo .done span{color:var(--good);text-decoration:line-through}
+#memo .done{color:var(--good);text-decoration:line-through}
+#memo .head{font-family:var(--txt);font-size:10px;color:var(--dim);letter-spacing:.08em}
+#warn{position:absolute;left:0;right:0;margin:0 auto;width:fit-content;top:28%;z-index:3;font-weight:700;font-size:clamp(20px,5.5vw,30px);color:var(--deep);background:rgba(255,255,255,.8);padding:6px 14px;border-radius:8px;white-space:pre-line;text-align:center;line-height:1.35;max-width:calc(100% - 24px);opacity:0;transition:opacity .25s;pointer-events:none}
+#controls{flex:0 0 auto;display:grid;grid-template-columns:1fr 1fr 1.6fr 1fr;gap:8px;padding:8px max(10px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));background:var(--deep)}
+button{font-family:var(--txt);font-weight:700;border:0;border-radius:10px;cursor:pointer}
+button:focus-visible{outline:3px solid var(--signal);outline-offset:2px}
+.cb{background:#33506e;color:#fff;font-size:20px;padding:14px 0;touch-action:none}
+.cb small{display:block;font-size:10px;font-weight:400;opacity:.75;margin-top:2px}
+#flagLeft{line-height:1.3}#flagLeft.far .d{color:#1f3349;font-weight:700}
+.cb.on{background:#5a82aa}
+#bGo{background:#e8eef3;color:var(--deep);font-size:18px}
+#bGo.on{background:#fff}
+#bFlag{background:var(--signal);color:#fff;font-size:15px}
+#bFlag.fin{background:#fff;color:var(--deep);box-shadow:inset 0 0 0 2px var(--deep)}#bFlag.fin small{opacity:.8}
+#menuBtn{position:absolute;right:max(10px,env(safe-area-inset-right,0px));bottom:10px;z-index:4;background:rgba(31,51,73,.86);color:#fff;width:38px;height:38px;font-size:18px;padding:0}
+#tune{position:absolute;right:max(10px,env(safe-area-inset-right,0px));bottom:56px;z-index:6;background:#fff;border:1px solid var(--ice);border-radius:10px;padding:10px 12px;width:260px;display:grid;gap:6px;font-size:13px;max-height:calc(100% - 130px);overflow-y:auto;pointer-events:auto}
+#tune .grp{font-size:11px;color:var(--dim);letter-spacing:.06em;border-top:1px solid var(--ice);padding-top:8px;margin-top:2px}
+#tune label{display:grid;grid-template-columns:1fr auto;column-gap:8px;row-gap:0;align-items:baseline} #tune label input[type=range]{grid-column:1/-1;margin:2px 0 0} #tune .row{display:flex;gap:8px;align-items:center}
+.ov{position:absolute;inset:0;z-index:8;display:grid;place-items:center;background:rgba(31,51,73,.55);padding:12px;overflow:hidden}
+.card{background:#fff;border-radius:14px;padding:16px;max-width:420px;width:100%;max-height:100%;display:flex;flex-direction:column;gap:10px;box-shadow:0 14px 40px rgba(20,33,47,.35);overflow:hidden}
+.card canvas{flex:0 1 auto;min-height:0;width:auto!important;height:auto;max-width:100%;max-height:44vh;aspect-ratio:1/1;align-self:center}
+body.brief #hud, body.brief #memo, body.brief #controls, body.brief #menuBtn, body.brief #tune{display:none}
+.card h1{margin:0;font-size:26px;letter-spacing:.04em;text-wrap:balance}
+.card p{margin:0;line-height:1.75;font-size:14px}
+.card ul{margin:0;padding-left:1.2em;font-size:13px;line-height:1.75;color:#34495d}
+.go{background:var(--signal);color:#fff;font-size:17px;padding:12px}
+.sub{background:#e3eaf0;color:var(--deep);font-size:14px;padding:10px}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btns button{text-align:center;line-height:1.3}
+.btns small{display:block;font-size:11px;font-weight:400;opacity:.85}
+.share{background:#fff;color:var(--deep);border:2px solid var(--deep);font-size:14px;padding:10px}
+#ovShot{z-index:9}
+#ovShot img{width:100%;height:auto;border-radius:8px;border:1px solid var(--ice);display:block}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px;margin:0}
+.kv dt{color:var(--dim)} .kv dd{margin:0;text-align:right;font-family:var(--num);font-variant-numeric:tabular-nums}
+.big{font-family:var(--num);font-weight:700;font-size:34px}
+#brief{width:100%;aspect-ratio:1/1;max-width:100%;border-radius:10px;background:var(--snow);border:1px solid var(--ice);display:block}
+
+body.title #hud, body.title #memo, body.title #controls, body.title #menuBtn, body.title #tune, body.title #warn{display:none}
+/* タイトル：上に屋号、まん中は見本走行が見える窓、下は操作ボタンと同じ紺の帯 */
+#ovTitle{position:fixed;inset:0;z-index:7;display:flex;flex-direction:column;text-align:center;
+  background:linear-gradient(to bottom,rgba(238,243,247,.97) 0%,rgba(238,243,247,.9) 30%,rgba(238,243,247,.15) 46%,rgba(238,243,247,0) 58%)}
+#ovTitle .top{padding:calc(8vh + env(safe-area-inset-top,0px)) 16px 0;display:flex;flex-direction:column;align-items:center}
+#ovTitle .tag{display:flex;align-items:center;gap:10px;font-family:var(--num);font-size:11px;font-weight:500;letter-spacing:.32em;color:var(--dim);margin-bottom:14px}
+#ovTitle .tag::before,#ovTitle .tag::after{content:"";width:28px;height:1px;background:var(--ice)}
+#ovTitle h1{margin:0;font-size:clamp(56px,17vw,96px);font-weight:700;letter-spacing:.1em;line-height:1;color:var(--deep);padding-left:.1em}
+#ovTitle .lead{margin:18px 0 0;font-size:clamp(13px,3.6vw,15px);color:#34495d;letter-spacing:.04em}
+#ovTitle .win{flex:1 1 auto;min-height:120px}
+#ovTitle .band{background:var(--deep);color:#d6e1ea;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:16px;box-shadow:0 -10px 30px rgba(20,33,47,.18)}
+#ovTitle ol{list-style:none;margin:0;padding:0;display:grid;gap:5px;text-align:left;font-size:13px;line-height:1.6;max-width:340px;width:100%}
+#ovTitle ol li{display:grid;grid-template-columns:2.2em 1fr;align-items:baseline}
+#ovTitle ol b{font-family:var(--num);font-size:11px;font-weight:700;color:var(--signal);letter-spacing:.04em}
+#ovTitle .go{width:100%;max-width:340px;font-size:18px;padding:14px;letter-spacing:.2em}
+@media (min-width:720px){#ovTitle .band{flex-direction:row;justify-content:center;gap:40px;padding-top:22px;padding-bottom:calc(22px + env(safe-area-inset-bottom,0px))}#ovTitle .go{width:260px}}
+@media (max-height:620px){#ovTitle .top{padding-top:calc(3vh + env(safe-area-inset-top,0px))}#ovTitle h1{font-size:clamp(44px,12vh,72px)}#ovTitle .win{min-height:40px}}
+@media (max-height:480px){#ovTitle .lead{display:none}}
+/* ---- 屋号：E＋氷 2（解星 特ミン・氷の色・かすれやや弱め） ---- */
+:root{--disp:'Kaisei Tokumin','Shippori Mincho B1',serif;--dispW:800}
+.card h1,.card h2{font-family:var(--disp);font-weight:var(--dispW)}
+#ovTitle .top{position:relative}
+#ovTitle .tag{gap:0;margin-bottom:8px}
+#ovTitle .tag::before,#ovTitle .tag::after{display:none}
+#ovTitle h1{position:relative;margin:0;font:800 clamp(64px,20vw,100px)/1.05 var(--disp);letter-spacing:.08em;padding-left:.08em;
+  color:transparent;text-shadow:0 -1.5px 0 #ffffff,0 1.5px 0 rgba(31,51,73,.7);
+  -webkit-mask-image:repeating-linear-gradient(-8deg,#000 0 7px,rgba(0,0,0,.7) 7px 8px,#000 8px 15px,rgba(0,0,0,.55) 15px 16px),linear-gradient(90deg,rgba(0,0,0,.6),#000 30%,#000 75%,rgba(0,0,0,.75));-webkit-mask-composite:source-in;
+  mask-image:repeating-linear-gradient(-8deg,#000 0 7px,rgba(0,0,0,.7) 7px 8px,#000 8px 15px,rgba(0,0,0,.55) 15px 16px),linear-gradient(90deg,rgba(0,0,0,.6),#000 30%,#000 75%,rgba(0,0,0,.75));mask-composite:intersect}
+/* 氷の面は上に重ねる（ふちの白い光と影は h1 の text-shadow） */
+#ovTitle h1::after{content:attr(data-t);position:absolute;inset:0;padding-left:.08em;text-shadow:none;color:transparent;
+  background:linear-gradient(176deg,#cfe3f2 0%,#86afd0 35%,#4a7aa3 62%,#253f5a 100%);-webkit-background-clip:text;background-clip:text}
+#ovTitle .ttsub{margin-top:8px;font:800 clamp(20px,6vw,28px) var(--disp);letter-spacing:.6em;padding-left:.6em;color:var(--signal)}
+#ovTitle .gust{position:absolute;left:0;right:0;top:0;height:60%;pointer-events:none;background:repeating-linear-gradient(-8deg,transparent 0 22px,rgba(255,255,255,.5) 22px 23px,transparent 23px 41px,rgba(255,255,255,.3) 41px 42px)}
+@media (prefers-reduced-motion:no-preference){#ovTitle .gust{animation:gust 2.4s linear infinite}}
+@keyframes gust{from{background-position:0 0}to{background-position:-180px 0}}
+@media (max-height:620px){#ovTitle h1{font-size:clamp(48px,12vh,76px)}}
+/* ---- 結果画面：タイトルと同じ組み立て（上に記録、まん中に道のりの地図、下に紺の帯） ---- */
+#ovEnd{position:fixed;inset:0;z-index:8;display:flex;flex-direction:column;background:var(--snow)}
+/* 画面に収める：地図以外の高さを先に取り、地図は残りの高さに合わせて大きさを決める（fitMap） */
+#ovEnd .rmain{flex:1 1 auto;min-height:0;overflow:hidden;width:100%;max-width:980px;margin:0 auto;
+  padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));
+  display:flex;flex-direction:column;gap:12px}
+#ovEnd .rmain.tight{overflow-y:auto}
+#ovEnd .rinfo{display:flex;flex-direction:column;gap:12px;flex:none}
+#ovEnd .rhead{display:grid;gap:3px}
+#ovEnd .rtag{font:500 11px var(--num);letter-spacing:.32em;color:var(--dim)}
+#ovEnd h1{margin:0;font:800 clamp(26px,min(9vw,5.4vh),44px)/1.15 var(--disp);letter-spacing:.06em;color:var(--deep);text-wrap:balance}
+#ovEnd h1.lost{color:#5f7286}
+#ovEnd .rnote{margin:0;font-size:13px;line-height:1.6;color:#34495d}
+#ovEnd .rscore{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--ice)}
+#ovEnd .rstar{display:grid;gap:2px}
+#ovEnd .rstar small{font-size:11px;letter-spacing:.12em;color:var(--dim)}
+#ovEnd .rstar b{font:700 clamp(34px,6.5vh,46px)/1 var(--num);color:var(--deep);font-variant-numeric:tabular-nums}
+#ovEnd .rstar b i{font-style:normal;color:var(--fuel);font-size:.7em;margin-right:4px;vertical-align:.08em}
+#ovEnd .rstar.lost b{color:#8696a6}#ovEnd .rstar.lost b i{color:#b4c0cc}
+#ovEnd .rstar em{font-style:normal;font-size:12px;color:var(--dim)}
+#ovEnd .rpts{text-align:right;display:grid;gap:2px}
+#ovEnd .rpts small{font-size:11px;letter-spacing:.12em;color:var(--dim)}
+#ovEnd .rpts b{font:700 22px var(--num);color:var(--deep);font-variant-numeric:tabular-nums}
+#ovEnd .rrec{display:flex;flex-wrap:wrap;gap:6px}
+#ovEnd .chip{display:inline-flex;align-items:baseline;gap:5px;padding:4px 9px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px var(--ice);font-size:12.5px;color:var(--ink)}
+#ovEnd .chip b{font-family:var(--num);color:var(--deep)}#ovEnd .chip i{font-style:normal;font-family:var(--num);color:#b07a00}
+#ovEnd .chip.lost{background:transparent;color:#8696a6;box-shadow:inset 0 0 0 1.5px #d3dce5;text-decoration:line-through}#ovEnd .chip.lost i{color:#8696a6;text-decoration:none}
+#ovEnd .rrec .none{font-size:12.5px;color:var(--dim)}
+#ovEnd .rstats{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(54px,1fr));gap:10px 6px}
+#ovEnd .rstats div{display:grid;gap:3px;min-width:0}
+#ovEnd .rstats dt{font-size:11px;color:var(--dim);letter-spacing:.06em}
+#ovEnd .rstats dd{margin:0;font:700 17px var(--num);color:var(--ink);font-variant-numeric:tabular-nums}
+#ovEnd .rstats dd small{font-size:11px;font-weight:500;color:var(--dim);margin-left:2px}
+#ovEnd .rmap{margin:0;flex:1 1 auto;min-height:0;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:6px}
+#ovEnd .rmap canvas{width:100%;height:200px;flex:none;border-radius:12px;border:1px solid var(--ice);background:var(--snow);display:block}
+#ovEnd .legend{display:flex;flex-wrap:wrap;gap:6px 10px;justify-content:center;font-size:11px;color:var(--dim)}
+#ovEnd .legend span{display:inline-flex;align-items:center;gap:6px}
+#ovEnd .legend svg{flex:none}
+#ovEnd .rband{flex:0 0 auto;background:var(--snow);padding:6px max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+#ovEnd .rband .in{max-width:640px;margin:0 auto;display:grid;gap:10px}
+#ovEnd .rband .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#ovEnd .rband .row.act{grid-template-columns:1fr 1.5fr}
+#ovEnd .rband button{min-height:48px;line-height:1.25;text-align:center}
+#ovEnd .rband .sh{background:#fff;color:var(--deep);box-shadow:inset 0 0 0 2px var(--deep);font-size:14px;padding:10px}
+#ovEnd .rband .tt{background:#dfe7ee;color:var(--deep);font-size:15px;padding:10px}
+#ovEnd .rband .go small{display:block;font-size:11px;font-weight:400;opacity:.9}
+@media (min-width:760px){
+  #ovEnd .rmain{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:36px;align-items:center}
+  #ovEnd .rmap{grid-column:1;grid-row:1;align-self:stretch}
+  #ovEnd .rinfo{grid-column:2;grid-row:1;gap:16px}
+  #ovEnd .rband .in{grid-template-columns:1fr 1fr;max-width:900px}
+}
+@media (prefers-reduced-motion:reduce){#warn{transition:none}}
+</style>
+
+</head><body>
+<div id="app">
+  <div id="view">
+    <canvas id="cv"></canvas>
+    <div id="hud"><div class="bar">
+      <div class="g" id="fuelG">燃料<b id="hFuel">100</b><div id="fuelBar"><i id="hFuelBar" style="width:100%"></i></div></div>
+      <div class="g">データ<b id="hData">☆0</b></div>
+      <div class="g">走行距離<b id="hOdo">0m</b></div>
+      <div class="g" id="clkG">大荒れ<b id="hClk">5:00</b></div>
+      <div class="g">風<b id="hWind">弱い</b></div>
+    </div></div>
+    <div id="memo"></div>
+    <div id="warn"></div>
+
+    <div id="ovTitle">
+      <div class="top"><div class="gust"></div><div class="tag">FIELD TEST</div><h1 data-t="南極">南極</h1><div class="ttsub">観測行</div></div>
+      <div class="win"></div>
+      <div class="band">
+        <ol>
+          <li><b>01</b>データは基地に持ち帰って、はじめて記録になる</li>
+          <li><b>02</b>5分後に大ブリザード。それまでに基地へ</li>
+          <li><b>03</b>旗はロープでつながり、吹雪の帰り道になる</li>
+          <li><b>04</b>燃料が切れたら救助を待つ。運ぶデータは失う</li>
+        </ol>
+        <button class="go" id="btnTitle">スタート</button>
+      </div>
+    </div>
+    <div class="ov" id="ovStart" hidden>
+      <div class="card">
+        <h2 style="margin:0;font-size:20px">きょうの観測点</h2>
+        <canvas id="brief" width="600" height="600"></canvas>
+        <ul>
+          <li>遠いほど大事なデータ（A 気象 ☆1／B 雪の地層 ☆2／C 氷床コア ☆4）。そりに積んで運ぶ</li>
+          <li><b>5分後に大ブリザード</b>。それまでに基地へ</li>
+          <li>観測点に着くと燃料 +20。基地に入ると記録と補給</li>
+          <li>旗は近くの旗か基地とロープでつながり、吹雪の帰り道になる</li>
+        </ul>
+        <button class="go" id="btnStart">基地を出る</button>
+      </div>
+    </div>
+    <div id="ovEnd" hidden>
+      <div class="rmain">
+        <div class="rinfo"><div class="rhead"><div class="rtag">FIELD REPORT</div><h1 id="rTitle">—</h1><p class="rnote" id="rNote"></p></div>
+        <div class="rscore"><div class="rstar" id="rStar"><small>持ち帰ったデータ</small><b><i>☆</i><span id="rGot">0</span></b><em id="rTaken" hidden></em></div><div class="rpts"><small>点</small><b id="rPts">0</b></div></div>
+        <div class="rrec" id="rRec"></div>
+        <dl class="rstats" id="rStats"></dl></div>
+        <figure class="rmap"><canvas id="trail" width="720" height="720" aria-label="走った道のりの地図"></canvas>
+          <figcaption class="legend">
+            <span><svg width="22" height="8" aria-hidden="true"><path d="M1 5 Q11 1 21 4" stroke="#1f3349" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>走った道</span>
+            <span><svg width="22" height="8" aria-hidden="true"><line x1="1" y1="4" x2="21" y2="4" stroke="#ff6a2b" stroke-width="2" stroke-dasharray="4 3"/></svg>旗のロープ</span>
+            <span><svg width="24" height="12" aria-hidden="true"><ellipse cx="12" cy="6" rx="11.5" ry="5.5" fill="#c9dbea"/><path d="M3 6 L6 4 L9 7.5 L12 3.5 L15 7.5 L18 4 L21 6 L18 8 L15 6 L12 8.5 L9 6 L6 8 Z" fill="#2f5677"/></svg>クレバス</span>
+            <span><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="#2c9a5b"/></svg>取った観測点</span>
+          </figcaption></figure>
+      </div>
+      <div class="rband"><div class="in">
+        <div class="row"><button class="sh" id="bShot" type="button">画像で共有</button><button class="sh" id="bX" type="button">Xで共有</button></div>
+        <div class="row act"><button class="tt" id="bTitle" type="button">タイトルへ</button><button class="go" id="bAgain" type="button">もう一度<small>（地図が変わる）</small></button></div>
+      </div></div>
+    </div>
+  </div>
+  <div id="controls">
+    <button class="cb" id="bL" aria-label="左に曲がる">◀<small>左</small></button>
+    <button class="cb" id="bR" aria-label="右に曲がる">▶<small>右</small></button>
+    <button class="cb" id="bGo">進む<small>押している間</small></button>
+    <button class="cb" id="bFlag"><span id="flagMain">旗</span><small id="flagLeft">のこり10</small></button>
+  </div>
+</div>
+
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const cv=$('cv'),ctx=cv.getContext('2d');let W=0,H=0,DPR=1;
+function resize(){const r=$('view').getBoundingClientRect();DPR=Math.min(2,devicePixelRatio||1);W=r.width;H=r.height;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
+new ResizeObserver(resize).observe($('view'));resize();
+
+const T={dl:5,fuel:2.0,storm:1,flags:10,depot:20,arrow:false,sound:true,prev:true,first:true};
+
+// audio
+let AC=null,windG=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC}
+function tone(f,dur,type='sine',vol=.1,when=0){if(!T.sound||phase==='demo'||!AC)return;const a=AC;const t=a.currentTime+when;const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g).connect(a.destination);o.start(t);o.stop(t+dur+.02)}
+function windStart(){const a=ac();if(!a||windG)return;const n=a.sampleRate*3,b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;const s=a.createBufferSource();s.buffer=b;s.loop=true;const f=a.createBiquadFilter();f.type='bandpass';f.frequency.value=500;f.Q.value=.6;windG=a.createGain();windG.gain.value=0;s.connect(f).connect(windG).connect(a.destination);s.start()}
+
+// rng
+let seed=1;function rnd(){seed=(seed*16807)%2147483647;return (seed-1)/2147483646}
+function hash(x,y){let h=(x*374761393+y*668265263)^0x5bd1e995;h=(h^(h>>13))*1274126177;return ((h^(h>>16))>>>0)/4294967295}
+
+const DIRS=['北','北東','東','南東','南','南西','西','北西'];
+function dirName(deg){return DIRS[Math.round(((deg%360)+360)%360/45)%8]}
+// world: x east, y south (screen). bearing 0=north, clockwise.
+function fromBearing(deg,dist){const r=deg*Math.PI/180;return {x:Math.sin(r)*dist,y:-Math.cos(r)*dist}}
+function bearingOf(dx,dy){return (Math.atan2(dx,-dy)*180/Math.PI+360)%360}
+
+let G=null;
+function makeWorld(){seed=Math.floor(Math.random()*1e6)+1;
+  const base=rnd()*360;
+  const pts=[{id:'A',star:1,dist:450,name:'気象',what:'風と気温の記録'},{id:'B',star:2,dist:900,name:'雪の地層',what:'雪に残った季節の重なり'},{id:'C',star:4,dist:1500,name:'氷床コア',what:'氷に閉じこめられた大昔の空気'}];
+  pts.forEach((p,i)=>{p.bear=Math.round((base+i*120+(rnd()*50-25)+360)%360);const v=fromBearing(p.bear,p.dist);p.x=v.x;p.y=v.y;p.done=false});
+  const crev=[];
+  for(let i=0;i<26;i++){let x,y,ok;let tries=0;do{const r=230+rnd()*1500,a=rnd()*Math.PI*2;x=Math.cos(a)*r;y=Math.sin(a)*r;ok=pts.every(p=>Math.hypot(p.x-x,p.y-y)>130);tries++}while(!ok&&tries<20);
+    const ang=rnd()*Math.PI;const len=60+rnd()*110,wid=16+rnd()*14;crev.push({x,y,ang,len,wid,seen:false})}
+  return {pts,crev,flags:[],ropes:[],trail:[]};}
+
+function newGame(demo){const w=makeWorld();
+  G={...w,demo:!!demo,aiFlag:0,x:0,y:0,h:rnd()*Math.PI*2,v:0,fuel:100,data:0,odo:0,left:T.flags,t:0,stuck:0,obs:null,obsT:0,leftBase:false,ended:false,crevN:0,ropeOdo:0,onRope:false,
+     wind:0.15,windTarget:0.15,windT:6,windDir:rnd()*Math.PI*2,warnT:0,forecast:false,
+     bank:0,stock:BASE_FUEL,flagStock:BASE_FLAGS,sorties:1,wxq:[],cargo:[],records:[],deadline:T.dl*60,storm:false,endNote:''};
+  updMemo();}
+
+function updMemo(){$('memo').innerHTML='<div class="head">観測点のメモ（基地から）'+(G.bank?`　記録 ☆${G.bank}`:'')+'</div>'+G.pts.map(p=>`<div class="row ${p.done?'done':''}"><span>${p.id}</span><span class="st">${'★'.repeat(p.star)}${'☆'.repeat(4-p.star)}</span><span>${dirName(p.bear)}</span><span class="r">${String(p.bear).padStart(3,'0')}°</span><span class="r"><small class="ab">約</small>${p.dist}m</span></div>`).join('')}
+
+// input
+const key={L:false,R:false,F:false};
+function nudge(k){if(phase!=='run'||!G||G.obs||G.stuck>0)return;const d=Math.PI/180;if(k==='L')G.h-=d;if(k==='R')G.h+=d}
+function bindHold(el,k){const on=e=>{e.preventDefault();if(!key[k])nudge(k);key[k]=true;el.classList.add('on');ac();windStart()};const off=()=>{key[k]=false;el.classList.remove('on')};el.addEventListener('pointerdown',on);el.addEventListener('pointerup',off);el.addEventListener('pointercancel',off);el.addEventListener('pointerleave',off)}
+bindHold($('bL'),'L');bindHold($('bR'),'R');bindHold($('bGo'),'F');
+function canFinish(){return !!(phase==='run'&&G&&G.served&&Math.hypot(G.x,G.y)<70)}
+function flagOrFinish(){if(canFinish()){end(true);return}plantFlag()}
+$('bFlag').addEventListener('pointerdown',e=>{e.preventDefault();flagOrFinish()});
+addEventListener('keydown',e=>{if(e.key==='ArrowLeft'){if(!e.repeat&&!key.L)nudge('L');key.L=true}else if(e.key==='ArrowRight'){if(!e.repeat&&!key.R)nudge('R');key.R=true}else if(e.key==='ArrowUp'||e.key===' '){key.F=true;e.preventDefault()}else if(e.key==='f'||e.key==='F')flagOrFinish();});
+addEventListener('keyup',e=>{if(e.key==='ArrowLeft')key.L=false;else if(e.key==='ArrowRight')key.R=false;else if(e.key==='ArrowUp'||e.key===' ')key.F=false});
+
+function warn(t,s=1.6,next){const w=$('warn');w.textContent=t;w.style.opacity=1;G.warnT=s;G.warnNext=next?(typeof next[0]==='string'?[next]:next):null}
+function plantFlag(auto){if(!G||G.ended)return;if(!(phase==='run'||(auto&&phase==='demo')))return;if(G.left<=0){warn('旗がもうない');return}
+  if(Math.hypot(G.x,G.y)<70){warn('基地のそばには立てられない');return}
+  const a=nearestAnchor();const firstLink=T.first&&G.flags.length===0;
+  G.flags.push({x:G.x,y:G.y,n:T.flags-G.left+1});G.left--;
+  if(a.d<=ROPE||firstLink){G.ropes.push({ax:a.x,ay:a.y,bx:G.x,by:G.y,t0:G.t});tone(700,.08,'triangle',.08);tone(940,.1,'triangle',.07,.07);tone(1250,.12,'triangle',.06,.15);}
+  else{warn('ロープが届かない（300mより遠い）',1.8);tone(700,.08,'triangle',.08)}}
+const ROPE=300;const BASE_FUEL=100,BASE_FLAGS=5;const OBS_R=46,OBS_CAR=24;
+function nearestAnchor(){let b={x:0,y:0,d:Math.hypot(G.x,G.y),base:true};for(const f of G.flags){const d=Math.hypot(f.x-G.x,f.y-G.y);if(d<b.d)b={x:f.x,y:f.y,d,base:false}}return b}
+function segDist(px,py,r){const vx=r.bx-r.ax,vy=r.by-r.ay;const L=vx*vx+vy*vy||1;let t=((px-r.ax)*vx+(py-r.ay)*vy)/L;t=Math.max(0,Math.min(1,t));return Math.hypot(r.ax+vx*t-px,r.ay+vy*t-py)}
+function ropeNear(px,py){let m=1e9;for(const r of G.ropes){const d=segDist(px,py,r);if(d<m)m=d}return m}
+
+let phase='title';
+function visR(){const strong=[0.75,1,1.2][T.storm];const w=Math.min(1,G.wind*strong);return 320-w*270}
+
+function ai(){const undone=G.pts.filter(p=>!p.done);let tx=0,ty=0;
+  if(undone.length&&G.fuel>45){const p=undone.reduce((a,b)=>Math.hypot(a.x-G.x,a.y-G.y)<Math.hypot(b.x-G.x,b.y-G.y)?a:b);tx=p.x;ty=p.y}
+  const want0=Math.atan2(tx-G.x,-(ty-G.y));let want=want0;
+  for(const o of [0,.25,-.25,.5,-.5,.8,-.8,1.1,-1.1,1.5,-1.5,2,-2]){if(clearAhead(want0+o)){want=want0+o;break}}
+  let diff=want-G.h;diff=Math.atan2(Math.sin(diff),Math.cos(diff));
+  key.L=diff<-0.08;key.R=diff>0.08;key.F=Math.abs(diff)<1.2;
+  G.aiFlag+=G.v*0.016;if(G.aiFlag>260&&Math.hypot(G.x,G.y)>120){G.aiFlag=0;plantFlag(true)}}
+function clearAhead(h){const sh=Math.sin(h),ch=Math.cos(h);
+  for(let s=12;s<=150;s+=10){const px=G.x+sh*s,py=G.y-ch*s;
+    for(const c of G.crev){if(Math.abs(px-c.x)>c.len&&Math.abs(py-c.y)>c.len)continue;const co=Math.cos(-c.ang),si=Math.sin(-c.ang);const lx=(px-c.x)*co-(py-c.y)*si,ly=(px-c.x)*si+(py-c.y)*co;
+      if(Math.abs(lx)<c.len/2+24&&Math.abs(ly)<c.wid/2+24)return false}}return true}
+function genWx(t){const strong=t>20&&rnd()<0.55;return {strong,target:strong?0.75+rnd()*0.25:0.05+rnd()*0.35,dur:strong?7+rnd()*7:8+rnd()*10}}
+// これから span 秒の予報：[{from,to,target}]
+function forecast(span){let t=G.t+G.windT;const out=[{from:0,to:G.windT,target:G.windTarget}];let i=0;
+  while(t-G.t<span){if(i>=G.wxq.length)G.wxq.push(genWx(t));const sg=G.wxq[i++];out.push({from:t-G.t,to:t-G.t+sg.dur,target:sg.target});t+=sg.dur}return out}
+function step(dt){if(phase!=='run'&&phase!=='demo')return;if(phase==='demo')ai();G.t+=dt;
+  if(phase==='run'&&!G.storm){const left=G.deadline-G.t;
+    if(left<=60&&!G.w60){G.w60=true;warn('大ブリザードまで あと1分',2)}
+    if(left<=30&&!G.w30){G.w30=true;warn('大ブリザードまで あと30秒',2)}
+    if(left<=0){G.storm=true;G.wxq=[];G.windTarget=1;G.windT=1e9;
+      if(Math.hypot(G.x,G.y)<70){G.endNote='大ブリザードが来た。基地で観測を終えた。';G.bank+=G.data;G.records.push(...G.cargo);G.data=0;G.cargo=[];end(true);return}
+      warn('大ブリザードが来た\n基地へ急げ',2.6)}}
+  // weather
+  G.windT-=dt;if(G.windT<=0){const sg=G.wxq.length?G.wxq.shift():genWx(G.t);G.windTarget=sg.target;G.windT=sg.dur;if(sg.strong&&G.wind<0.5&&phase==='run'){warn('風が強まってきた…',2.2);G.forecast=true}}
+  const rate=G.windTarget>G.wind?0.09:0.14;G.wind+=Math.sign(G.windTarget-G.wind)*Math.min(Math.abs(G.windTarget-G.wind),rate*dt);
+  G.windDir+=(Math.sin(G.t*0.07)*0.2)*dt;
+  if(windG)windG.gain.value=(T.sound&&phase==='run')?0.02+G.wind*0.22:0;
+  // observation
+  // 観測中は燃料を減らさない（観測点に着いた時点で補給ずみ。ここで燃料切れにはしない）
+  if(G.obs){G.obsT-=dt;if(G.obsT<=0){G.obs.done=true;G.data+=G.obs.star;G.cargo.push(G.obs);warn(`観測点${G.obs.id}　${G.obs.name}のデータ ☆+${G.obs.star}\n${G.obs.what}`,2.4);tone(660,.15,'sine',.1);tone(990,.25,'sine',.1,.14);G.obs=null;updMemo()}return}
+  if(G.stuck>0){G.stuck-=dt;G.fuel-=0.3*dt;checkFuel();return}
+  const turn=1.9;G.holdL=key.L?(G.holdL||0)+dt:0;G.holdR=key.R?(G.holdR||0)+dt:0;
+  const ramp=h=>h<=0?0:phase==='demo'?1:h<0.25?0:Math.min(1,0.25+(h-0.25)/0.35);
+  G.h-=turn*dt*ramp(G.holdL);G.h+=turn*dt*ramp(G.holdR);
+  const target=key.F?72:0;G.v+=(target-G.v)*(1-Math.exp(-dt/0.35));
+  if(!key.F&&G.v<0.5)G.v=0;
+  // 風で流されるのは走っている間だけ。走った距離は自分で進んだぶんだけ数える
+  G.onRope=ropeNear(G.x,G.y)<22;
+  const strong=[0.75,1,1.2][T.storm];const drift=G.wind*strong*14*(G.storm?1.6:1)*(G.v/72)*(G.onRope?0.15:1);
+  const dx=Math.sin(G.h)*G.v*dt+Math.cos(G.windDir)*drift*dt, dy=-Math.cos(G.h)*G.v*dt+Math.sin(G.windDir)*drift*dt;
+  G.x+=dx;G.y+=dy;G.odo+=G.v*dt;if(G.onRope)G.ropeOdo+=G.v*dt;
+  G.fuel-=(key.F?T.fuel*(G.onRope?0.7:1):(Math.hypot(G.x,G.y)<55?0:0.3))*dt;
+  if(G.t%0.25<dt)G.trail.push([G.x,G.y]);
+  if(Math.hypot(G.x,G.y)>140){if(G.served){G.served=false;G.sorties++}G.leftBase=true}
+  // crevasse
+  for(const c of G.crev){const lx=(G.x-c.x)*Math.cos(-c.ang)-(G.y-c.y)*Math.sin(-c.ang),ly=(G.x-c.x)*Math.sin(-c.ang)+(G.y-c.y)*Math.cos(-c.ang);
+    if(Math.abs(lx)<c.len/2&&Math.abs(ly)<c.wid/2){G.crevN++;G.fuel-=12;G.stuck=2.2;G.v=0;const back=50;G.x-=Math.sin(G.h)*back;G.y+=Math.cos(G.h)*back;c.seen=true;warn('クレバス！ 抜け出すのに燃料 −12',2.2);tone(150,.4,'sawtooth',.08);tone(110,.5,'sawtooth',.07,.15);break}}
+  // obs points
+  for(const p of G.pts){if(!p.done&&Math.hypot(G.x-p.x,G.y-p.y)<OBS_R-OBS_CAR){G.obs=p;G.obsT=3;G.v=0;const add=Math.max(0,Math.min(T.depot,100-Math.max(0,G.fuel)));G.fuel=Math.max(0,G.fuel)+add;if(G.fuel<=0)G.fuel=0.5;
+      if(add>=1){warn(`燃料の置き場で補給 +${Math.round(add)}`,1.3,[`観測点${p.id}　観測中…`,1.7]);G.fuelUpT=1.3;tone(520,.08,'triangle',.07);tone(780,.12,'triangle',.07,.08)}
+      else warn(`観測点${p.id}　観測中…`,3);break}}
+  // base
+  if(G.leftBase&&Math.hypot(G.x,G.y)<55){if(G.demo){end(true);return}if(G.storm){G.endNote='大ブリザードの中、基地に帰りついた。';G.bank+=G.data;G.records.push(...G.cargo);G.data=0;G.cargo=[];end(true);return}serviceBase()}
+  checkFuel();}
+function checkFuel(){if(G.fuel<=0){G.fuel=0;end(false)}}
+
+function end(home){if(G.ended)return;if(G.demo){newGame(true);return}G.ended=true;phase='end';key.L=key.R=key.F=false;if(windG)windG.gain.value=0;
+  const lostC=home?0:G.data;const lostItems=home?[]:G.cargo.slice();if(home){G.records.push(...G.cargo);G.cargo=[]}const got=G.bank+(home?G.data:0);if(home){G.bank=got;G.data=0}const fuel=Math.round(G.fuel);const score=got*100+(home?fuel:0);
+  if(home){tone(523,.18);tone(659,.18,'sine',.1,.15);tone(784,.35,'sine',.1,.3)}else{tone(220,.4,'triangle',.08);tone(165,.6,'triangle',.08,.3)}
+  const title=!home?'救助を待つ':got>=7?'全観測点を制覇':got>=4?'遠征の名人':got>=2?'たのもしい隊員':got>=1?'無事に帰還':'手ぶらで帰還';
+  $('rTitle').textContent=title;$('rTitle').classList.toggle('lost',!home);
+  $('rNote').textContent=G.endNote?G.endNote:home?(G.sorties>1?`基地で観測を終えた。出発は${G.sorties}回。`:'基地に帰りついた。'):(got>0?`燃料が切れた。救助隊が来るまで待つ。基地に記録したデータ ☆${got} は残った。`:'燃料が切れた。救助隊が来るまで待つ。取ったデータは持ち帰れなかった。');
+  $('rGot').textContent=got;$('rStar').classList.toggle('lost',!home&&got===0);$('rTaken').hidden=!lostC;$('rTaken').textContent=lostC?`運んでいた ☆${lostC} は持ち帰れず`:'';
+  $('rPts').textContent=score;
+  $('rRec').innerHTML=(G.records.length||lostItems.length)?G.records.map(p=>`<span class="chip"><b>${p.id}</b>${p.name}<i>☆${p.star}</i></span>`).join('')+lostItems.map(p=>`<span class="chip lost"><b>${p.id}</b>${p.name}<i>失った</i></span>`).join(''):'<span class="none">持ち帰った記録はない</span>';
+  const st=[['のこり燃料',fuel,''],['走行距離',Math.round(G.odo),'m'],['クレバス',G.crevN,'回'],['立てた旗',G.flags.length,'本'],['旗の道',Math.round(G.ropeOdo),'m']];
+  $('rStats').innerHTML=st.map(([k,v,u])=>`<div><dt>${k}</dt><dd>${v}<small>${u}</small></dd></div>`).join('');
+  LAST={home,got,lostC,taken:lostC,title,fuel,odo:Math.round(G.odo),flags:G.flags.length,rope:Math.round(G.ropeOdo),crev:G.crevN,score};
+  $('bShot').onclick=shareImage;$('bX').onclick=shareX;
+  document.body.classList.add('brief');$('ovEnd').hidden=false;$('ovEnd').querySelector('.rmain').scrollTop=0;fitMap();
+  $('bAgain').onclick=()=>{$('ovEnd').hidden=true;newGame();phase='brief';showBrief()};
+  $('bTitle').onclick=()=>{$('ovEnd').hidden=true;toTitle()}}
+// ---- 基地 ----
+const wxName=w=>w>0.7?'吹雪':w>0.45?'強い':w>0.2?'やや強い':'弱い';
+function serviceBase(){G.leftBase=false;G.served=true;
+  const rec=G.data;G.bank+=G.data;G.data=0;G.records.push(...G.cargo);G.cargo=[];updMemo();
+  const needF=Math.max(0,100-G.fuel),addF=Math.min(needF,G.stock);G.fuel+=addF;G.stock-=addF;
+  const addL=Math.min(Math.max(0,T.flags-G.left),G.flagStock);G.left+=addL;G.flagStock-=addL;
+  const msgs=[];
+  msgs.push([rec>0?`基地にデータ ☆${rec} を記録\n記録の合計 ☆${G.bank}`:`基地に戻った\n記録の合計 ☆${G.bank}`,1.9]);
+  const sup=[];if(addF>=1)sup.push(`燃料 +${Math.round(addF)}`);if(addL>0)sup.push(`旗 +${addL}`);
+  if(sup.length)msgs.push([`補給　${sup.join('／')}\n備蓄 燃料${Math.round(G.stock)}・旗${G.flagStock}本`,1.9]);
+  else if(needF>=1&&G.stock<1)msgs.push(['燃料の備蓄がもうない',1.6]);
+  const strong=[0.75,1,1.2][T.storm];const bad=forecast(60).find(sg=>sg.from<60&&sg.target*strong>0.45);
+  msgs.push([!bad?'天気：1分は大きく荒れない見込み':bad.from<1?`天気：いま${wxName(bad.target*strong)}`:`天気：${Math.round(bad.from)}秒後から${wxName(bad.target*strong)}の見込み`,2]);
+  if(addF>=1){G.fuelUpT=1.9}
+  tone(523,.15);tone(784,.25,'sine',.1,.12);
+  {const left=Math.max(0,G.deadline-G.t);msgs[msgs.length-1][0]+=`\n大ブリザードまで あと${Math.floor(left/60)}分${String(Math.floor(left%60)).padStart(2,'0')}秒`}
+  const [f,...rest]=msgs;warn(f[0],f[1],rest)}
+// ---- 共有 ----
+const SHARE_URL='https://nankyoku-kansokukou.pages.dev/';
+const TAG='#南極観測行';
+let LAST=null;
+function shareText(){const L=LAST;return L.home?`南極 観測行｜${L.title}\n☆${L.got}を基地に持ち帰った（燃料のこり${L.fuel}・走行距離${L.odo}m・旗${L.flags}本）`:`南極 観測行｜救助を待つ\n燃料が切れた。記録できたのは ☆${L.got}${L.lostC?`（運んでいた ☆${L.lostC} は持ち帰れず）`:''}（走行距離${L.odo}m）`}
+function shareX(){const t=shareText()+'\n'+(SHARE_URL?SHARE_URL+'\n':'')+TAG;window.open('https://x.com/intent/post?text='+encodeURIComponent(t),'_blank','noopener')}
+function makeCard(){const c=document.createElement('canvas');c.width=1200;c.height=630;const m=c.getContext('2d');const L=LAST;
+  m.fillStyle='#eef3f7';m.fillRect(0,0,1200,630);
+  // 雪面のすじ
+  m.strokeStyle='#d8e3ec';m.lineWidth=3;m.lineCap='round';for(let i=0;i<70;i++){const x=hash(i,1)*1200,y=hash(i,2)*630,l=14+hash(i,3)*30;m.beginPath();m.moveTo(x-l,y);m.quadraticCurveTo(x,y-5,x+l,y+3);m.stroke()}
+  m.fillStyle='#1f3349';m.fillRect(0,0,1200,10);
+  // 左：文字
+  const X=64;m.textAlign='left';m.textBaseline='alphabetic';
+  m.fillStyle='#1f3349';m.fillRect(X,58,150,32);m.fillStyle='#fff';m.font='700 18px "IBM Plex Mono",monospace';m.fillText('FIELD TEST',X+16,81);
+  m.font='800 70px "Kaisei Tokumin","Shippori Mincho B1",serif';
+  m.fillStyle='rgba(31,51,73,.7)';m.fillText('南極',X,173.5);m.fillStyle='#ffffff';m.fillText('南極',X,170.5);
+  {const g=m.createLinearGradient(0,108,10,180);[[0,'#cfe3f2'],[.35,'#86afd0'],[.62,'#4a7aa3'],[1,'#253f5a']].forEach(([p,c])=>g.addColorStop(p,c));m.fillStyle=g;m.fillText('南極',X,172)}
+  const tw=m.measureText('南極').width;m.fillStyle='#ff6a2b';m.font='800 28px "Kaisei Tokumin","Shippori Mincho B1",serif';m.fillText('観 測 行',X+tw+22,170);
+  m.fillStyle=L.home?'#14212f':'#5f7286';m.font='800 46px "Kaisei Tokumin","Shippori Mincho B1",serif';m.fillText(L.title,X,262);
+  m.font='700 96px "IBM Plex Mono",monospace';m.fillStyle=(L.home||L.got>0)?'#e6a100':'#8696a6';m.fillText('☆'+L.got,X,375);
+  if(L.lostC){m.font='400 20px "BIZ UDPGothic",sans-serif';m.fillStyle='#5f7286';m.fillText(`運んでいた ☆${L.lostC} は持ち帰れず`,X+180,362)}
+  const rows=[['のこり燃料',L.home?String(L.fuel):'0'],['走行距離',L.odo+'m'],['立てた旗',L.flags+'本'],['旗の道',L.rope+'m'],['クレバス',L.crev+'回']];
+  m.font='400 24px "BIZ UDPGothic",sans-serif';rows.forEach(([k,v],i)=>{const y=432+i*38;m.fillStyle='#5f7286';m.textAlign='left';m.font='400 24px "BIZ UDPGothic",sans-serif';m.fillText(k,X,y);m.fillStyle='#14212f';m.textAlign='right';m.font='700 26px "IBM Plex Mono",monospace';m.fillText(v,X+430,y)});
+  m.textAlign='left';
+  // 右：道のりの地図
+  const mp=document.createElement('canvas');mp.width=1080;mp.height=1080;drawMap(mp,true,true);
+  const S=540,mx=1200-S-45,my=45;m.fillStyle='#fff';m.fillRect(mx-6,my-6,S+12,S+12);m.drawImage(mp,mx,my,S,S);m.strokeStyle='#b9cad9';m.lineWidth=2;m.strokeRect(mx-6,my-6,S+12,S+12);
+  m.fillStyle='#5f7286';m.font='400 20px "BIZ UDPGothic",sans-serif';m.textAlign='right';m.fillText(TAG,1200-45,612);
+  return c}
+async function shareImage(){try{await document.fonts.ready}catch(e){}
+  const c=makeCard();const blob=await new Promise(r=>c.toBlob(r,'image/png'));const file=new File([blob],'nankyoku-kansokukou.png',{type:'image/png'});
+  const mobile=matchMedia('(pointer:coarse)').matches;
+  if(mobile&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],text:shareText()+'\n'+(SHARE_URL?SHARE_URL+'\n':'')+TAG});return}catch(e){if(e&&e.name==='AbortError')return}}
+  // PC・共有できないとき：画像を見せて保存
+  const url=URL.createObjectURL(blob);const ov=document.createElement('div');ov.className='ov';ov.id='ovShot';
+  ov.innerHTML=`<div class="card"><h2 style="margin:0;font-size:18px">結果の画像</h2><img alt="結果の画像" src="${url}"><p style="font-size:12px;color:var(--dim)">保存できないときは、画像を右クリック（スマホは長押し）して保存してください。</p><div class="btns"><button class="sub" id="bShotClose">閉じる</button><button class="go" id="bShotSave">画像を保存</button></div></div>`;
+  $('view').appendChild(ov);$('bShotClose').onclick=()=>{ov.remove();URL.revokeObjectURL(url)};
+  $('bShotSave').onclick=async()=>{const name='nankyoku-kansokukou.png';
+    // claude.ai の中では downloads、ふつうのサイトに置いたときは <a download>
+    if(window.claude&&window.claude.use){let dl=null;try{dl=await window.claude.use('downloads')}catch(e){}
+      if(dl){try{await dl.save({filename:name,data:blob})}catch(e){}return}
+      $('bShotSave').hidden=true;return}
+    const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove()}}
+function toTitle(){document.body.classList.remove('brief');document.body.classList.add('title');$('ovTitle').hidden=false;newGame(true);phase='demo'}
+
+function fitMap(){const ov=$('ovEnd');if(ov.hidden)return;const mainEl=ov.querySelector('.rmain'),fig=ov.querySelector('.rmap'),cvs=$('trail'),lg=fig.querySelector('.legend');
+  mainEl.classList.remove('tight');cvs.style.height='10px';
+  const wide=matchMedia('(min-width:760px)').matches;let availH;
+  if(wide){const cs=getComputedStyle(mainEl);availH=Math.min(mainEl.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom),fig.clientWidth*1.15)}
+  else availH=fig.clientHeight;
+  let h=Math.floor(availH-lg.offsetHeight-6);if(h<120){mainEl.classList.add('tight');h=120}
+  cvs.style.height=h+'px';const D=Math.min(2,devicePixelRatio||1);const w=cvs.clientWidth;
+  if(cvs.width!==Math.round(w*D)||cvs.height!==Math.round(h*D)){cvs.width=Math.round(w*D);cvs.height=Math.round(h*D)}
+  if(G&&G.ended)drawMap(cvs,true)}
+new ResizeObserver(()=>fitMap()).observe(document.documentElement);
+function drawMap(c,withTrail,legend){const m=c.getContext('2d');const CW=c.width,CH=c.height,k=Math.min(CW,CH)/600;m.setTransform(1,0,0,1,0,0);m.clearRect(0,0,CW,CH);m.fillStyle='#eef3f7';m.fillRect(0,0,CW,CH);
+  // 雪面のすじ（地図の外側も雪原に見えるように）
+  m.strokeStyle='#dbe5ee';m.lineWidth=2*k;m.lineCap='round';const cell=46*k;for(let i=0;i<=CW/cell+1;i++)for(let j=0;j<=CH/cell+1;j++){const h=hash(i+7,j+3);if(h<.45)continue;const px=i*cell+hash(j,i)*cell,py=j*cell+h*cell,L=(6+h*12)*k;m.beginPath();m.moveTo(px-L,py);m.quadraticCurveTo(px,py-3*k,px+L,py+1.5*k);m.stroke()}
+  m.setTransform(k,0,0,k,(CW-600*k)/2,(CH-600*k)/2);
+  const R=1700;const sc=300/R*0.92;const cx=300,cy=300;
+  m.strokeStyle='#d3dee8';m.lineWidth=1;[500,1000,1500].forEach(r=>{m.beginPath();m.arc(cx,cy,r*sc,0,Math.PI*2);m.stroke()});
+  m.fillStyle='#8aa0b4';m.font='600 15px IBM Plex Mono,monospace';m.textAlign='center';m.fillText('N',cx,18);m.beginPath();m.moveTo(cx,22);m.lineTo(cx-6,33);m.lineTo(cx+6,33);m.fill();
+  if(withTrail){
+    // クレバス：ゲームの中と同じ「水色のくぼみに紺のギザギザ」を、地図でも見える大きさで
+    G.crev.forEach(cr=>{const L=Math.max(22,cr.len*sc*1.25),Wd=Math.max(7,cr.wid*sc*1.6);m.save();m.translate(cx+cr.x*sc,cy+cr.y*sc);m.rotate(cr.ang);
+      m.fillStyle='#c9dbea';m.beginPath();m.ellipse(0,0,L/2+4,Wd/2+3.5,0,0,Math.PI*2);m.fill();
+      m.fillStyle='#2f5677';m.beginPath();const n=6;m.moveTo(-L/2,0);for(let i=0;i<=n;i++){const x=-L/2+L*i/n;m.lineTo(x,-(Wd/2)*(.35+.65*Math.sin(i/n*Math.PI))*(i%2?1:.6))}for(let i=n;i>=0;i--){const x=-L/2+L*i/n;m.lineTo(x,(Wd/2)*(.35+.65*Math.sin(i/n*Math.PI))*(i%2?.6:1))}m.closePath();m.fill();m.restore()});
+    m.strokeStyle='#ff6a2b';m.lineWidth=2;m.setLineDash([6,5]);G.ropes.forEach(r=>{m.beginPath();m.moveTo(cx+r.ax*sc,cy+r.ay*sc);m.lineTo(cx+r.bx*sc,cy+r.by*sc);m.stroke()});m.setLineDash([]);
+    m.strokeStyle='#1f3349';m.lineWidth=2.5;m.lineJoin='round';m.lineCap='round';m.beginPath();G.trail.forEach(([x,y],i)=>{i?m.lineTo(cx+x*sc,cy+y*sc):m.moveTo(cx+x*sc,cy+y*sc)});m.lineTo(cx+G.x*sc,cy+G.y*sc);m.stroke();
+    G.flags.forEach(f=>{m.fillStyle='#ff6a2b';m.strokeStyle='#fff';m.lineWidth=1.5;m.beginPath();m.arc(cx+f.x*sc,cy+f.y*sc,4.5,0,Math.PI*2);m.fill();m.stroke()})}
+  G.pts.forEach(p=>{const X=cx+p.x*sc,Y=cy+p.y*sc;m.fillStyle=p.done?'#2c9a5b':'#1f3349';m.strokeStyle='#fff';m.lineWidth=2;m.beginPath();m.arc(X,Y,8,0,Math.PI*2);m.fill();m.stroke();
+    m.font='700 17px BIZ UDPGothic,sans-serif';const t=p.id+' '+p.name+' ☆'+p.star;const ly=Y<70?Y+27:Y-14;m.lineWidth=4;m.strokeStyle='rgba(238,243,247,.95)';m.strokeText(t,X,ly);m.fillStyle='#14212f';m.fillText(t,X,ly)});
+  m.fillStyle='#ff6a2b';m.strokeStyle='#fff';m.lineWidth=2;m.fillRect(cx-8,cy-8,16,16);m.strokeRect(cx-8,cy-8,16,16);m.font='700 15px BIZ UDPGothic,sans-serif';m.lineWidth=4;m.strokeStyle='rgba(238,243,247,.95)';m.strokeText('基地',cx,cy+27);m.fillStyle='#14212f';m.fillText('基地',cx,cy+27);
+  if(legend){const items=[['道','走った道'],['綱','旗のロープ'],['割','クレバス'],['済','取った観測点']];let x=14;const y=582;m.textAlign='left';m.font='400 13px BIZ UDPGothic,sans-serif';
+    m.fillStyle='rgba(255,255,255,.85)';m.fillRect(6,566,588,28);
+    items.forEach(([k2,t])=>{if(k2==='道'){m.strokeStyle='#1f3349';m.lineWidth=2.5;m.beginPath();m.moveTo(x,y);m.quadraticCurveTo(x+10,y-5,x+20,y-1);m.stroke()}
+      if(k2==='綱'){m.strokeStyle='#ff6a2b';m.lineWidth=2;m.setLineDash([4,3]);m.beginPath();m.moveTo(x,y-1);m.lineTo(x+20,y-1);m.stroke();m.setLineDash([])}
+      if(k2==='割'){m.fillStyle='#c9dbea';m.beginPath();m.ellipse(x+11,y-1,11,5.5,0,0,Math.PI*2);m.fill();m.fillStyle='#2f5677';m.beginPath();m.moveTo(x+2,y-1);m.lineTo(x+6,y-3.5);m.lineTo(x+9,y);m.lineTo(x+12,y-4);m.lineTo(x+15,y);m.lineTo(x+18,y-3.5);m.lineTo(x+21,y-1);m.lineTo(x+18,y+1.5);m.lineTo(x+15,y-1);m.lineTo(x+12,y+2);m.lineTo(x+9,y-1);m.lineTo(x+6,y+1.5);m.fill()}
+      if(k2==='済'){m.fillStyle='#2c9a5b';m.beginPath();m.arc(x+6,y-1,5,0,Math.PI*2);m.fill()}
+      const w0=k2==='済'?14:26;m.fillStyle='#5f7286';m.fillText(t,x+w0,y+4);x+=w0+m.measureText(t).width+20})}
+  m.setTransform(1,0,0,1,0,0)}
+
+function showBrief(){document.body.classList.add('brief');$('ovStart').hidden=false;drawMap($('brief'),false)}
+$('btnTitle').onclick=()=>{ac();windStart();key.L=key.R=key.F=false;document.body.classList.remove('title');$('ovTitle').hidden=true;newGame();phase='brief';showBrief()};
+$('btnStart').onclick=()=>{$('ovStart').hidden=true;document.body.classList.remove('brief');phase='run';warn('基地を出発',1.4)};
+
+// render
+function titleCy(){const w=document.querySelector('#ovTitle .win');if(!w||$('ovTitle').hidden)return H*0.52;const r=w.getBoundingClientRect(),v=$('view').getBoundingClientRect();return Math.max(40,Math.min(H-40,(r.top+r.bottom)/2-v.top))}
+// 基地：踏み固めた雪の広場に、居住棟・観測棟・通信塔・旗
+function drawBase(c,t){const sh=(f)=>{c.save();c.fillStyle='rgba(31,51,73,.13)';c.translate(3,3);f();c.fill();c.restore()};
+  c.fillStyle='#e2eaf1';c.beginPath();c.ellipse(0,4,72,58,0,0,Math.PI*2);c.fill();
+  c.strokeStyle='rgba(150,170,190,.35)';c.lineWidth=6;c.lineCap='round';c.beginPath();c.moveTo(-60,40);c.quadraticCurveTo(-10,30,8,52);c.moveTo(50,-30);c.quadraticCurveTo(40,0,62,20);c.stroke();
+  // 居住棟（赤）
+  sh(()=>{c.beginPath();c.rect(-40,-24,46,32)});c.fillStyle='#c94a2a';c.fillRect(-40,-24,46,32);c.fillStyle='#a63c21';c.fillRect(-40,-24,46,6);
+  c.fillStyle='#ffe2a8';[-34,-24,-14].forEach(x=>c.fillRect(x,-12,6,5));c.fillStyle='#7a2a16';c.fillRect(-4,-4,7,12);
+  // 観測棟（白と青の帯）
+  sh(()=>{c.beginPath();c.rect(10,-18,34,26)});c.fillStyle='#eef2f5';c.fillRect(10,-18,34,26);c.strokeStyle='#9fb2c3';c.lineWidth=1.5;c.strokeRect(10,-18,34,26);c.fillStyle='#4a7aa3';c.fillRect(10,-8,34,4);
+  // 通信塔（上に基地の灯り）
+  c.strokeStyle='#1f3349';c.lineWidth=3;c.beginPath();c.moveTo(0,-20);c.lineTo(0,-60);c.stroke();c.lineWidth=1.5;c.beginPath();for(let y=-28;y>-60;y-=8){c.moveTo(-4,y);c.lineTo(4,y-4)}c.stroke();
+  // 旗
+  c.strokeStyle='#14212f';c.lineWidth=2;c.beginPath();c.moveTo(-50,-30);c.lineTo(-50,-54);c.stroke();const wv=Math.sin(t*5)*2;c.fillStyle='#ff6a2b';c.beginPath();c.moveTo(-50,-54);c.lineTo(-36,-50+wv);c.lineTo(-50,-45);c.fill()}
+function draw(){if(!G)return;const sc=Math.min(1.25,Math.max(0.7,Math.min(W,H)/560));
+  const cx=W/2,cy=phase==='demo'?titleCy():H*0.52;const V=visR();
+  ctx.fillStyle='#eef3f7';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.translate(cx,cy);ctx.scale(sc,sc);ctx.translate(-G.x,-G.y);
+  // sastrugi texture
+  const cell=60;const x0=Math.floor((G.x-W/sc)/cell),x1=Math.ceil((G.x+W/sc)/cell),y0=Math.floor((G.y-H/sc)/cell),y1=Math.ceil((G.y+H/sc)/cell);
+  ctx.strokeStyle='#cfdbe6';ctx.lineWidth=2;ctx.lineCap='round';
+  for(let i=x0;i<=x1;i++)for(let j=y0;j<=y1;j++){const h=hash(i,j);if(h<0.35)continue;const px=i*cell+hash(j,i)*cell,py=j*cell+h*cell;const L=10+h*22;ctx.beginPath();ctx.moveTo(px-L,py);ctx.quadraticCurveTo(px,py-4,px+L,py+2);ctx.stroke()}
+  // trail tracks
+  ctx.strokeStyle='rgba(150,170,190,.35)';ctx.lineWidth=7;ctx.beginPath();const tr=G.trail.slice(-60);tr.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));if(tr.length)ctx.lineTo(G.x,G.y);ctx.stroke();
+  // crevasses
+  G.crev.forEach(c=>{if(Math.hypot(c.x-G.x,c.y-G.y)>V+c.len)return;ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.ang);
+    ctx.fillStyle='#c9dbea';ctx.beginPath();ctx.ellipse(0,0,c.len/2+10,c.wid/2+8,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#2f5677';ctx.beginPath();const n=8;ctx.moveTo(-c.len/2,0);for(let k=0;k<=n;k++){const x=-c.len/2+c.len*k/n;ctx.lineTo(x,-(c.wid/2)*(0.4+0.6*Math.sin(k/n*Math.PI))*(k%2?1:0.7))}for(let k=n;k>=0;k--){const x=-c.len/2+c.len*k/n;ctx.lineTo(x,(c.wid/2)*(0.4+0.6*Math.sin(k/n*Math.PI))*(k%2?0.7:1))}ctx.closePath();ctx.fill();ctx.restore()});
+  // obs points
+  G.pts.forEach(p=>{ctx.save();ctx.translate(p.x,p.y);ctx.fillStyle=p.done?'#2c9a5b':'#1f3349';ctx.fillRect(-3,-34,6,34);ctx.fillRect(-12,-44,24,14);const dd=Math.hypot(G.x-p.x,G.y-p.y),near=!p.done&&dd<OBS_R+OBS_CAR&&!G.obs;ctx.strokeStyle=near?'#ff6a2b':'#1f3349';ctx.lineWidth=near?3:2;ctx.beginPath();ctx.arc(0,0,OBS_R,0,Math.PI*2);ctx.setLineDash([5,6]);ctx.stroke();ctx.setLineDash([]);ctx.restore()});
+  // base
+  drawBase(ctx,G.t);
+  ctx.restore();
+  // fog
+  const fogR=V*sc;const fg=ctx.createRadialGradient(cx,cy,fogR*0.45,cx,cy,fogR);fg.addColorStop(0,'rgba(238,243,247,0)');fg.addColorStop(1,'rgba(238,243,247,1)');ctx.fillStyle=fg;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#eef3f7';ctx.beginPath();ctx.rect(0,0,W,H);ctx.arc(cx,cy,fogR,0,Math.PI*2,true);ctx.fill();
+  const toS=(x,y)=>[cx+(x-G.x)*sc,cy+(y-G.y)*sc];
+  // labels for obs inside view
+  G.pts.forEach(p=>{const d=Math.hypot(p.x-G.x,p.y-G.y);if(d>V*1.05)return;const [sx,sy]=toS(p.x,p.y);ctx.globalAlpha=Math.min(1,(V*1.05-d)/60);ctx.fillStyle='#14212f';ctx.font='700 13px BIZ UDPGothic,sans-serif';ctx.textAlign='center';ctx.fillText(`観測点${p.id} ${p.name} ☆${p.star}${p.done?' 済':''}`,sx,sy-50*sc);ctx.globalAlpha=1});
+  // flags (visible farther, through fog)
+  const flagR=Math.max(V*1.9,170);
+  // ropes：近くにあれば吹雪でも見える
+  ctx.lineCap='round';
+  G.ropes.forEach(r=>{const d=segDist(G.x,G.y,r);if(d>flagR)return;const a=d<V?0.9:Math.max(0.15,1-(d-V)/(flagR-V))*0.9;
+    const pr=Math.min(1,(G.t-(r.t0??-9))/0.6);const e=1-Math.pow(1-pr,3);const [bx,by]=toS(r.bx,r.by),[ax0,ay0]=toS(r.ax,r.ay);const ax=bx+(ax0-bx)*e,ay=by+(ay0-by)*e;ctx.globalAlpha=a;
+    ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=6*sc;ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
+    ctx.strokeStyle='#ff6a2b';ctx.lineWidth=2.5*sc;ctx.setLineDash([9*sc,7*sc]);ctx.lineDashOffset=0;ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1});
+  G.flags.forEach(f=>{const d=Math.hypot(f.x-G.x,f.y-G.y);if(d>flagR)return;const a=d<V?1:Math.max(0,1-(d-V)/(flagR-V))*0.95+0.05;const [sx,sy]=toS(f.x,f.y);ctx.globalAlpha=a;ctx.strokeStyle='#14212f';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(sx,sy-26*sc);ctx.stroke();const wv=Math.sin(G.t*6+f.n)*2;ctx.fillStyle='#ff6a2b';ctx.beginPath();ctx.moveTo(sx,sy-26*sc);ctx.lineTo(sx+16*sc,sy-21*sc+wv);ctx.lineTo(sx,sy-15*sc);ctx.fill();ctx.font='700 10px IBM Plex Mono,monospace';ctx.fillStyle='#14212f';ctx.fillText(f.n,sx-6,sy+10);ctx.globalAlpha=1});
+  // base light
+  const bd=Math.hypot(G.x,G.y);const baseR=Math.max(V*3,260);
+  if(bd<baseR){const [sx,sy]=toS(0,-60);const a=bd<V?1:Math.max(0,1-(bd-V)/(baseR-V));const pulse=0.6+0.4*Math.sin(G.t*4);const r=(18+pulse*10)*sc;const lg=ctx.createRadialGradient(sx,sy,0,sx,sy,r*2.4);lg.addColorStop(0,`rgba(255,120,50,${a})`);lg.addColorStop(1,'rgba(255,120,50,0)');ctx.fillStyle=lg;ctx.beginPath();ctx.arc(sx,sy,r*2.4,0,Math.PI*2);ctx.fill();ctx.fillStyle=`rgba(255,230,200,${a})`;ctx.beginPath();ctx.arc(sx,sy,3.5*sc,0,Math.PI*2);ctx.fill();if(bd>V*0.8){ctx.globalAlpha=a;ctx.fillStyle='#14212f';ctx.font='700 12px BIZ UDPGothic,sans-serif';ctx.textAlign='center';ctx.fillText('基地の灯り',sx,sy-22*sc);ctx.globalAlpha=1}}
+  // snow particles
+  const strong=[0.75,1,1.2][T.storm];const w=Math.min(1,G.wind*strong);const n=Math.floor(40+w*260);const wx=Math.cos(G.windDir),wy=Math.sin(G.windDir);const sp=200+w*900;
+  ctx.strokeStyle=`rgba(255,255,255,${0.5+w*0.4})`;ctx.lineWidth=1.5;ctx.beginPath();
+  for(let i=0;i<n;i++){const h1=hash(i,7),h2=hash(i,13);let px=(h1*W*1.4+wx*sp*G.t*(0.6+h2)-(G.x*sc))%(W*1.4);let py=(h2*H*1.4+wy*sp*G.t*(0.6+h1)-(G.y*sc))%(H*1.4);px=(px+W*1.4)%(W*1.4)-W*0.2;py=(py+H*1.4)%(H*1.4)-H*0.2;const L=3+w*16;ctx.moveTo(px,py);ctx.lineTo(px+wx*L,py+wy*L)}ctx.stroke();
+  ctx.fillStyle='rgba(120,140,160,.5)';for(let i=0;i<n*0.4;i++){const px=hash(i,3)*W,py=(hash(i,5)*H+G.t*30*(0.5+hash(i,9)))%H;ctx.fillRect(px,py,2,2)}
+  if(w>0.6){ctx.fillStyle=`rgba(238,243,247,${(w-0.6)*0.9})`;ctx.fillRect(0,0,W,H)}
+  // つながる先：ロープが届く旗（基地）があれば、そこへ向かう細い点線を流す。吹雪でも見える道しるべ
+  if(T.prev&&phase==='run'&&!G.obs){const na=nearestAnchor();if(na.d<=ROPE&&na.d>30){const [tx,ty]=toS(na.x,na.base?0:na.y);const k=Math.min(1,(ROPE-na.d)/60+.35);
+    const ang=Math.atan2(ty-cy,tx-cx),sx=cx+Math.cos(ang)*30*sc,sy=cy+Math.sin(ang)*30*sc;
+    ctx.save();ctx.globalAlpha=.55*k;ctx.lineCap='round';ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=4*sc;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(tx,ty);ctx.stroke();
+    ctx.strokeStyle='#ff6a2b';ctx.lineWidth=1.6*sc;ctx.setLineDash([2*sc,7*sc]);ctx.lineDashOffset=-G.t*24;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(tx,ty);ctx.stroke();ctx.setLineDash([]);
+    ctx.globalAlpha=.8*k;ctx.strokeStyle='#ff6a2b';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(tx,ty,(9+Math.sin(G.t*4)*2)*sc,0,Math.PI*2);ctx.stroke();ctx.restore()}}
+  // そりと積み荷（運んでいるデータ）
+  if(G.cargo&&G.cargo.length){ctx.save();ctx.translate(cx,cy);ctx.scale(sc,sc);ctx.rotate(G.h);
+    const sz=st=>st>=4?11:st>=2?8.5:6.5;const len=G.cargo.reduce((a,p)=>a+sz(p.star)+2,0)+4;const y0=24;
+    ctx.strokeStyle='#14212f';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,16);ctx.lineTo(0,y0);ctx.stroke();
+    ctx.fillStyle='#8aa0b4';ctx.fillRect(-9,y0,2,len);ctx.fillRect(7,y0,2,len);ctx.fillStyle='#d9e3eb';ctx.fillRect(-7,y0,14,len);
+    let y=y0+2;G.cargo.forEach(p=>{const s=sz(p.star);ctx.fillStyle=p.star>=4?'#1f3349':p.star>=2?'#4a7aa3':'#7fa3c2';ctx.fillRect(-s/2,y,s,s);ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=1;ctx.strokeRect(-s/2+.5,y+.5,s-1,s-1);
+      if(p.star>=4){ctx.fillStyle='#e6a100';ctx.fillRect(-s/2,y+s/2-1,s,2)}y+=s+2});ctx.restore()}
+  // vehicle
+  ctx.save();ctx.translate(cx,cy);ctx.scale(sc,sc);ctx.rotate(G.h);
+  const shake=G.stuck>0?Math.sin(G.t*50)*2:0;ctx.translate(shake,0);
+  ctx.fillStyle='#2b2f33';ctx.fillRect(-15,-17,7,34);ctx.fillRect(8,-17,7,34);
+  ctx.fillStyle='#e8571f';ctx.fillRect(-10,-15,20,30);ctx.fillStyle='#ffd1b8';ctx.fillRect(-7,-13,14,8);ctx.fillStyle='#14212f';ctx.fillRect(-2,-22,4,6);
+  ctx.restore();
+  if(G.onRope&&phase==='run'){const ly=cy+30*sc+14;ctx.fillStyle='rgba(255,255,255,.92)';ctx.beginPath();ctx.roundRect(cx-30,ly-12,60,18,9);ctx.fill();ctx.fillStyle='#ff6a2b';ctx.font='700 12px BIZ UDPGothic,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('旗の道',cx,ly-3);ctx.textBaseline='alphabetic'}
+  // observing ring
+  if(G.obs){ctx.strokeStyle='#1f3349';ctx.lineWidth=4;ctx.beginPath();ctx.arc(cx,cy,30*sc,-Math.PI/2,-Math.PI/2+Math.PI*2*(1-G.obsT/3));ctx.stroke()}
+  // compass
+  if(phase==='demo')return;
+  const r=34;const ccx=W-r-14-Math.max(0,0),ccy=H-r-112;
+  ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.arc(ccx,ccy,r,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#1f3349';ctx.lineWidth=1.5;ctx.stroke();
+  // heading line (vehicle) and north
+  ctx.save();ctx.translate(ccx,ccy);
+  ctx.fillStyle='#d63b2f';ctx.beginPath();ctx.moveTo(0,-r+5);ctx.lineTo(-5,-r+16);ctx.lineTo(5,-r+16);ctx.fill();ctx.fillStyle='#14212f';ctx.font='700 11px IBM Plex Mono,monospace';ctx.textAlign='center';ctx.fillText('N',0,-r+27);
+  ctx.rotate(G.h);ctx.strokeStyle='#e8571f';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,8);ctx.lineTo(0,-r+8);ctx.stroke();ctx.restore();
+  const hdg=Math.round(((G.h*180/Math.PI)%360+360)%360);ctx.fillStyle='#14212f';ctx.font='700 12px IBM Plex Mono,monospace';ctx.textAlign='center';ctx.fillText(`${dirName(hdg)} ${String(hdg).padStart(3,'0')}°`,ccx,ccy+r+14);
+  if(T.arrow){const b=Math.atan2(-G.y,-G.x);ctx.strokeStyle='#ff6a2b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(cx+Math.cos(b)*50,cy+Math.sin(b)*50);ctx.lineTo(cx+Math.cos(b)*70,cy+Math.sin(b)*70);ctx.stroke()}
+}
+
+function hud(){if(!G)return;$('hFuel').textContent=Math.max(0,Math.ceil(G.fuel));$('hFuelBar').style.width=Math.max(0,G.fuel)+'%';$('fuelG').classList.toggle('low',G.fuel<25);
+  const na=nearestAnchor();const nd=Math.round(na.d);const fin=canFinish();$('bFlag').classList.toggle('fin',fin);$('flagMain').textContent=fin?'終える':'旗';if(fin){$('flagLeft').innerHTML='観測を終えて<br>結果へ'}else{$('flagLeft').innerHTML=`のこり${G.left}<br><span class="d">${nd<=ROPE?'あと'+(ROPE-nd)+'m届く':(T.first&&G.flags.length===0?'基地とつながる':'届かない')}</span>`;$('flagLeft').classList.toggle('far',nd>ROPE&&!(T.first&&G.flags.length===0))}
+  $('hData').textContent='☆'+G.data;$('hOdo').textContent=Math.round(G.odo)+'m';{const left=Math.max(0,G.deadline-G.t);$('hClk').textContent=G.demo?'—':G.storm?'到来':`${Math.floor(left/60)}:${String(Math.floor(left%60)).padStart(2,'0')}`;$('clkG').classList.toggle('low',!G.demo&&(G.storm||left<60))}
+  const strong=[0.75,1,1.2][T.storm];const w=G.wind*strong;$('hWind').textContent=w>0.7?'吹雪':w>0.45?'強い':w>0.2?'やや強い':'弱い';
+  if(G.warnT>0){G.warnT-=1/60;if(G.warnT<=0){if(G.warnNext&&G.warnNext.length){const [n,...rest]=G.warnNext;warn(n[0],n[1],rest.length?rest:null)}else $('warn').style.opacity=0}}
+  // 補給の光：毎フレーム必ず付け外しする（見本走行やゲームの入れ替わりで光が残らないように）
+  {const fu=G.fuelUpT||0;if(fu>0)G.fuelUpT=fu-1/60;$('fuelG').classList.toggle('up',!G.demo&&phase==='run'&&(G.fuelUpT||0)>0)}}
+
+let last=performance.now();
+function loop(now){const dt=Math.min(0.05,(now-last)/1000);last=now;if(G){step(dt)}draw();hud();requestAnimationFrame(loop)}
+document.body.classList.add('title');newGame(true);phase='demo';requestAnimationFrame(loop);
+})();
+</script>
+</body></html>
